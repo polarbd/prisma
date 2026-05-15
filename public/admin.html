@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prisma - Panel de Administración</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#ffffff; --card:#f8fafc; --surface:#e2e8f0; --border:rgba(0,0,0,0.08);
+      --text:#0f172a; --muted:#475569; --dim:#94a3b8;
+      --primary:#2563eb; --primary-light:#3b82f6; --danger:#ef4444; --green:#22c55e;
+      --radius:12px; --font:'Inter',sans-serif;
+    }
+    body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; }
+
+    /* Login */
+    .login-page { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .login-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:48px 40px; width:100%; max-width:400px; }
+    .login-card h1 { font-size:1.5rem; margin-bottom:8px; text-align:center; }
+    .login-card p { color:var(--muted); font-size:0.85rem; text-align:center; margin-bottom:32px; }
+    .form-group { margin-bottom:20px; }
+    .form-group label { display:block; font-size:0.8rem; font-weight:600; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; }
+    .form-group input, .form-group textarea, .form-group select {
+      width:100%; padding:12px 16px; border-radius:8px; border:1px solid var(--border);
+      background:var(--surface); color:var(--text); font-family:var(--font); font-size:0.9rem;
+      transition:0.2s;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline:none; border-color:var(--primary); }
+    .form-group textarea { resize:vertical; min-height:80px; }
+
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:12px 24px; border-radius:8px; border:none; font-family:var(--font);
+      font-size:0.9rem; font-weight:600; cursor:pointer; transition:0.2s; width:100%;
+    }
+    .btn-primary { background:var(--primary); color:white; }
+    .btn-primary:hover { background:#7c3aed; }
+    .btn-danger { background:var(--danger); color:white; }
+    .btn-danger:hover { background:#dc2626; }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border); }
+    .btn-outline:hover { border-color:var(--primary); color:var(--primary-light); }
+    .btn-sm { padding:8px 16px; font-size:0.8rem; width:auto; }
+
+    .error-msg { color:var(--danger); font-size:0.8rem; margin-top:8px; text-align:center; }
+
+    /* Dashboard */
+    .dashboard { display:none; }
+    .dash-header {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:16px 32px; border-bottom:1px solid var(--border); background:var(--card);
+      position:sticky; top:0; z-index:100;
+    }
+    .dash-header h1 { font-size:1.1rem; display:flex; align-items:center; gap:8px; }
+    .dash-header .actions { display:flex; gap:12px; align-items:center; }
+    .dash-header a { color:var(--muted); font-size:0.85rem; transition:0.2s; }
+    .dash-header a:hover { color:var(--primary-light); }
+    a { text-decoration:none; color:inherit; }
+
+    .dash-content { max-width:1000px; margin:0 auto; padding:32px 24px; }
+
+    .tabs { display:flex; gap:4px; margin-bottom:32px; background:var(--card); border-radius:var(--radius); padding:4px; border:1px solid var(--border); }
+    .tab {
+      flex:1; padding:12px; text-align:center; border-radius:8px; cursor:pointer;
+      font-size:0.85rem; font-weight:600; color:var(--muted); transition:0.2s; border:none; background:none;
+    }
+    .tab.active { background:var(--primary); color:white; }
+    .tab:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.03); }
+
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    .panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .panel-header h2 { font-size:1.3rem; }
+
+    /* Items Grid */
+    .items-grid { display:grid; gap:16px; }
+    .item-card {
+      display:flex; align-items:center; gap:16px; padding:16px 20px;
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      transition:0.2s;
+    }
+    .item-card:hover { border-color:rgba(139,92,246,0.2); }
+    .item-thumb { width:80px; height:60px; border-radius:8px; overflow:hidden; background:var(--surface); flex-shrink:0; }
+    .item-thumb img, .item-thumb video { width:100%; height:100%; object-fit:cover; }
+    .item-info { flex:1; min-width:0; }
+    .item-info h3 { font-size:0.95rem; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item-info p { font-size:0.8rem; color:var(--muted); }
+    .item-actions { display:flex; gap:8px; flex-shrink:0; }
+
+    /* Plan item */
+    .plan-item { padding:20px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); }
+    .plan-item-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+    .plan-item-header h3 { font-size:1rem; }
+    .plan-item .price { color:var(--primary-light); font-weight:700; font-size:1.1rem; margin-bottom:8px; }
+    .plan-item .desc { font-size:0.85rem; color:var(--muted); margin-bottom:8px; }
+    .plan-item .benefits-list { display:flex; flex-wrap:wrap; gap:6px; }
+    .plan-item .benefit-tag {
+      padding:4px 10px; border-radius:100px; background:rgba(139,92,246,0.1);
+      font-size:0.7rem; color:var(--primary-light);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px);
+      display:none; align-items:center; justify-content:center; z-index:1000; padding:24px;
+    }
+    .modal-overlay.active { display:flex; }
+    .modal {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      width:100%; max-width:520px; max-height:90vh; overflow-y:auto; padding:32px;
+    }
+    .modal h2 { font-size:1.2rem; margin-bottom:24px; }
+    .modal-actions { display:flex; gap:12px; margin-top:24px; }
+    .modal-actions .btn { flex:1; }
+
+    .badge-input { display:flex; gap:8px; }
+    .badge-input input { flex:1; }
+
+    @media(max-width:640px) {
+      .dash-content { padding:16px; }
+      .item-card { flex-wrap:wrap; }
+      .item-thumb { width:100%; height:120px; }
+      .tabs { flex-wrap:wrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login -->
+  <div class="login-page" id="loginPage">
+    <div class="login-card">
+      <h1>🔒 Panel Admin</h1>
+      <p>Ingresa tus credenciales para acceder</p>
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" id="loginUser" placeholder="admin">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="loginPass" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" id="loginBtn">Iniciar sesión</button>
+      <div class="error-msg" id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <div class="dash-header">
+      <h1>⚡ Prisma Admin</h1>
+      <div class="actions">
+        <a href="/" target="_blank">Ver sitio →</a>
+        <button class="btn btn-outline btn-sm" id="logoutBtn">Salir</button>
+      </div>
+    </div>
+    <div class="dash-content">
+      <div class="tabs">
+        <button class="tab active" data-tab="portfolio">📸 Portafolio</button>
+        <button class="tab" data-tab="plans">📋 Planes</button>
+        <button class="tab" data-tab="prices">💰 Servicios</button>
+      </div>
+
+      <!-- Portfolio Tab -->
+      <div class="tab-panel active" id="tab-portfolio">
+        <div class="panel-header">
+          <h2>Portafolio</h2>
+          <button class="btn btn-primary btn-sm" id="addPortfolioBtn">+ Agregar</button>
+        </div>
+        <div class="items-grid" id="portfolioList"></div>
+      </div>
+
+      <!-- Plans Tab -->
+      <div class="tab-panel" id="tab-plans">
+        <div class="panel-header">
+          <h2>Planes</h2>
+          <button class="btn btn-primary btn-sm" id="addPlanBtn">+ Agregar Plan</button>
+        </div>
+        <div class="items-grid" id="plansList"></div>
+      </div>
+
+      <!-- Prices Tab -->
+      <div class="tab-panel" id="tab-prices">
+        <div class="panel-header">
+          <h2>Servicios Individuales</h2>
+          <button class="btn btn-primary btn-sm" onclick="openPriceModal()">+ Agregar Servicio</button>
+        </div>
+        <div class="items-grid" id="pricesList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portfolio Modal -->
+  <div class="modal-overlay" id="portfolioModal">
+    <div class="modal">
+      <h2 id="portfolioModalTitle">Agregar al Portafolio</h2>
+      <form id="portfolioForm" enctype="multipart/form-data">
+        <input type="hidden" id="portfolioId">
+        <div class="form-group">
+          <label>Título</label>
+          <input type="text" id="pTitle" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea id="pDesc"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="pType">
+            <option value="image">Imagen</option>
+            <option value="video">Video</option>
+          </select>
+        </div>
+        <div class="form-group" id="pFileGroup">
+          <label>Archivo (imagen/video)</label>
+          <input type="file" id="pFile" accept="image/*,video/*">
+        </div>
+        <div class="form-group" id="pUrlGroup" style="display:none">
+          <label>URL del video (YouTube, etc.)</label>
+          <input type="text" id="pVideoUrl" placeholder="https://youtube.com/watch?v=...">
+        </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <input type="text" id="pCategory" placeholder="general">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('portfolioModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Plan Modal -->
+  <div class="modal-overlay" id="planModal">
+    <div class="modal">
+      <h2 id="planModalTitle">Agregar Plan</h2>
+      <form id="planForm">
+        <input type="hidden" id="planId">
+        <div class="form-group">
+          <label>Nombre del Plan</label>
+          <input type="text" id="plName" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea id="plDesc"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Precio (ej: L. 3,500/mes)</label>
+          <input type="text" id="plPrice" required>
+        </div>
+        <div class="form-group">
+          <label>Beneficios (uno por línea)</label>
+          <textarea id="plBenefits" rows="6"></textarea>
+        </div>
+        <div class="form-group badge-input">
+          <div style="flex:1">
+            <label>Badge (opcional)</label>
+            <input type="text" id="plBadge" placeholder="Popular, Premium...">
+          </div>
+          <div style="width:80px">
+            <label>Orden</label>
+            <input type="number" id="plOrder" value="0">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('planModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Price Modal -->
+  <div class="modal-overlay" id="priceModal">
+    <div class="modal">
+      <h2 id="priceModalTitle">Nuevo Servicio Individual</h2>
+      <form id="priceForm" onsubmit="savePrice(event)">
+        <input type="hidden" id="priceId">
+        <div class="form-group">
+          <label>Nombre del Servicio</label>
+          <input type="text" id="priceName" required>
+        </div>
+        <div class="form-group">
+          <label>Precio</label>
+          <input type="text" id="priceValue" placeholder="Ej: L. 3,500" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea id="priceDescription" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Orden (Prioridad)</label>
+          <input type="number" id="priceOrder" value="0">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('priceModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // === API Wrapper ===
+    async function apiFetch(url, options = {}) {
+      const token = sessionStorage.getItem('adminToken');
+      if (token) {
+        options.headers = options.headers || {};
+        if (options.body && !(options.body instanceof FormData)) {
+          options.headers['Content-Type'] = 'application/json';
+        }
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(url, options);
+      if (res.status === 401 && !url.includes('/api/login') && !url.includes('/api/auth/check')) {
+        sessionStorage.removeItem('adminToken');
+        window.location.reload();
+      }
+      return res;
+    }
+
+    // === Auth ===
+    async function checkAuth() {
+      const token = sessionStorage.getItem('adminToken');
+      if (!token) return;
+      try {
+        const res = await apiFetch('/api/auth/check');
+        const data = await res.json();
+        if (data.isAdmin) showDashboard();
+        else sessionStorage.removeItem('adminToken');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    checkAuth();
+
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const user = document.getElementById('loginUser').value;
+      const pass = document.getElementById('loginPass').value;
+      const errEl = document.getElementById('loginError');
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await res.json();
+        if (res.ok) { 
+          sessionStorage.setItem('adminToken', data.token);
+          showDashboard(); 
+          errEl.textContent = ''; 
+        }
+        else { errEl.textContent = 'Credenciales incorrectas'; }
+      } catch { errEl.textContent = 'Error de conexión'; }
+    });
+
+    document.getElementById('loginPass').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await apiFetch('/api/logout', { method: 'POST' });
+      sessionStorage.removeItem('adminToken');
+      location.reload();
+    });
+
+    function showDashboard() {
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadAdminPortfolio();
+      loadAdminPlans();
+      loadPrices();
+    }
+
+    // === Tabs ===
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // === Portfolio Admin ===
+    async function loadAdminPortfolio() {
+      const res = await fetch('/api/portfolio');
+      const items = await res.json();
+      const list = document.getElementById('portfolioList');
+      if (items.length === 0) {
+        list.innerHTML = '<p style="color:var(--dim);text-align:center;padding:40px">No hay elementos en el portafolio</p>';
+        return;
+      }
+      list.innerHTML = items.map(item => `
+        <div class="item-card">
+          <div class="item-thumb">
+            ${item.media_type === 'video'
+              ? (item.media_url.includes('youtube') ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim)">▶</div>' : `<video src="${item.media_url}"></video>`)
+              : `<img src="${item.media_url}" alt="${item.title}">`}
+          </div>
+          <div class="item-info">
+            <h3>${item.title}</h3>
+            <p>${item.media_type} · ${item.category || 'general'}</p>
+          </div>
+          <div class="item-actions">
+            <button class="btn btn-outline btn-sm" onclick="editPortfolio(${item.id})">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="deletePortfolio(${item.id})">×</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('addPortfolioBtn').addEventListener('click', () => {
+      document.getElementById('portfolioId').value = '';
+      document.getElementById('portfolioForm').reset();
+      document.getElementById('portfolioModalTitle').textContent = 'Agregar al Portafolio';
+      openModal('portfolioModal');
+    });
+
+    document.getElementById('pType').addEventListener('change', function() {
+      const isVideo = this.value === 'video';
+      document.getElementById('pUrlGroup').style.display = isVideo ? 'block' : 'none';
+      document.getElementById('pFileGroup').querySelector('label').textContent = isVideo ? 'Archivo de video (opcional si usa URL)' : 'Archivo de imagen';
+    });
+
+    document.getElementById('portfolioForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const type = document.getElementById('pType').value;
+      const file = document.getElementById('pFile').files[0];
+
+      if (type === 'video' && file && !file.type.startsWith('video/')) {
+        alert('Error: Has seleccionado el tipo "Video" pero elegiste un archivo que no es video (ej. PNG/JPG). Por favor selecciona un video o cambia el tipo.');
+        return;
+      }
+
+      const id = document.getElementById('portfolioId').value;
+      const formData = new FormData();
+      formData.append('title', document.getElementById('pTitle').value);
+      formData.append('description', document.getElementById('pDesc').value);
+      formData.append('media_type', type);
+      formData.append('category', document.getElementById('pCategory').value);
+      formData.append('video_url', document.getElementById('pVideoUrl').value);
+      if (file) formData.append('media', file);
+
+      const url = id ? `/api/portfolio/${id}` : '/api/portfolio';
+      const method = id ? 'PUT' : 'POST';
+      await apiFetch(url, { method, body: formData });
+      closeModal('portfolioModal');
+      loadAdminPortfolio();
+    });
+
+    async function editPortfolio(id) {
+      const res = await fetch('/api/portfolio');
+      const items = await res.json();
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      document.getElementById('portfolioId').value = item.id;
+      document.getElementById('pTitle').value = item.title;
+      document.getElementById('pDesc').value = item.description || '';
+      document.getElementById('pType').value = item.media_type;
+      document.getElementById('pCategory').value = item.category || '';
+      document.getElementById('pVideoUrl').value = item.media_type === 'video' ? item.media_url : '';
+      document.getElementById('pType').dispatchEvent(new Event('change'));
+      document.getElementById('portfolioModalTitle').textContent = 'Editar Elemento';
+      openModal('portfolioModal');
+    }
+
+    async function deletePortfolio(id) {
+      if (!confirm('¿Eliminar este elemento?')) return;
+      await apiFetch(`/api/portfolio/${id}`, { method: 'DELETE' });
+      loadAdminPortfolio();
+    }
+
+    // === Plans Admin ===
+    async function loadAdminPlans() {
+      const res = await fetch('/api/plans');
+      const plans = await res.json();
+      const list = document.getElementById('plansList');
+      list.innerHTML = plans.map(plan => `
+        <div class="plan-item">
+          <div class="plan-item-header">
+            <h3>${plan.name} ${plan.badge ? `<span class="benefit-tag">${plan.badge}</span>` : ''}</h3>
+            <div class="item-actions">
+              <button class="btn btn-outline btn-sm" onclick='editPlan(${JSON.stringify(plan).replace(/'/g, "\\'")})'>Editar</button>
+              <button class="btn btn-danger btn-sm" onclick="deletePlan(${plan.id})">×</button>
+            </div>
+          </div>
+          <div class="price">${plan.price}</div>
+          <div class="desc">${plan.description || ''}</div>
+          <div class="benefits-list">
+            ${(plan.benefits || []).map(b => `<span class="benefit-tag">${b}</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('addPlanBtn').addEventListener('click', () => {
+      document.getElementById('planId').value = '';
+      document.getElementById('planForm').reset();
+      document.getElementById('planModalTitle').textContent = 'Agregar Plan';
+      openModal('planModal');
+    });
+
+    function editPlan(plan) {
+      document.getElementById('planId').value = plan.id;
+      document.getElementById('plName').value = plan.name;
+      document.getElementById('plDesc').value = plan.description || '';
+      document.getElementById('plPrice').value = plan.price;
+      document.getElementById('plBenefits').value = (plan.benefits || []).join('\n');
+      document.getElementById('plBadge').value = plan.badge || '';
+      document.getElementById('plOrder').value = plan.sort_order || 0;
+      document.getElementById('planModalTitle').textContent = 'Editar Plan';
+      openModal('planModal');
+    }
+
+    document.getElementById('planForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('planId').value;
+      const body = {
+        name: document.getElementById('plName').value,
+        description: document.getElementById('plDesc').value,
+        price: document.getElementById('plPrice').value,
+        benefits: document.getElementById('plBenefits').value.split('\n').filter(b => b.trim()),
+        badge: document.getElementById('plBadge').value,
+        sort_order: parseInt(document.getElementById('plOrder').value) || 0
+      };
+      const url = id ? `/api/plans/${id}` : '/api/plans';
+      const method = id ? 'PUT' : 'POST';
+      await apiFetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      closeModal('planModal');
+      loadAdminPlans();
+    });
+
+    async function deletePlan(id) {
+      if (!confirm('¿Eliminar este plan?')) return;
+      await apiFetch(`/api/plans/${id}`, { method: 'DELETE' });
+      loadAdminPlans();
+    }
+
+    // === Prices Admin ===
+    async function loadPrices() {
+      const res = await fetch('/api/prices');
+      const prices = await res.json();
+      const list = document.getElementById('pricesList');
+      list.innerHTML = prices.map(p => `
+        <div class="plan-item">
+          <div class="plan-item-header">
+            <h3>${p.name} <span class="benefit-tag">${p.price}</span></h3>
+            <div class="item-actions">
+              <button class="btn btn-outline btn-sm" onclick='editPrice(${JSON.stringify(p).replace(/'/g, "\\'")})'>Editar</button>
+              <button class="btn btn-danger btn-sm" onclick="deletePrice(${p.id})">×</button>
+            </div>
+          </div>
+          <div class="desc">${p.description || ''}</div>
+        </div>
+      `).join('');
+    }
+
+    function openPriceModal() {
+      document.getElementById('priceId').value = '';
+      document.getElementById('priceForm').reset();
+      document.getElementById('priceModalTitle').textContent = 'Nuevo Servicio Individual';
+      openModal('priceModal');
+    }
+
+    function editPrice(price) {
+      document.getElementById('priceId').value = price.id;
+      document.getElementById('priceName').value = price.name;
+      document.getElementById('priceValue').value = price.price;
+      document.getElementById('priceDescription').value = price.description || '';
+      document.getElementById('priceOrder').value = price.sort_order || 0;
+      document.getElementById('priceModalTitle').textContent = 'Editar Servicio';
+      openModal('priceModal');
+    }
+
+    async function savePrice(e) {
+      e.preventDefault();
+      const id = document.getElementById('priceId').value;
+      const data = {
+        name: document.getElementById('priceName').value,
+        price: document.getElementById('priceValue').value,
+        description: document.getElementById('priceDescription').value,
+        sort_order: parseInt(document.getElementById('priceOrder').value) || 0
+      };
+
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `/api/prices/${id}` : '/api/prices';
+
+      const res = await apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (res.ok) {
+        closeModal('priceModal');
+        loadPrices();
+      } else if (res.status === 401) {
+        window.location.reload();
+      } else {
+        alert('Error al guardar el servicio');
+      }
+    }
+
+    async function deletePrice(id) {
+      if (!confirm('¿Seguro que deseas eliminar este servicio?')) return;
+      const res = await apiFetch(`/api/prices/${id}`, { method: 'DELETE' });
+      if (res.ok) loadPrices();
+      else if (res.status === 401) window.location.reload();
+    }
+
+    // === Modal Utils ===
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+    });
+  </script>
+</body>
+</html>
